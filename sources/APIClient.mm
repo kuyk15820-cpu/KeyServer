@@ -664,7 +664,7 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
 }
 
 - (void)handleInvalidKey:(NSString *)key message:(NSString *)msg isAuto:(BOOL)isAuto {
-    char sel_c[] = {'r','e','m','o','v','e','O','b','j','e class','t','F','o','r','K','e','y',':',0};
+    char sel_c[] = {'r','e','m','o','v','e','O','b','j','e','c','t','F','o','r','K','e','y',':',0};
     SEL removeSel = NSSelectorFromString([NSString stringWithUTF8String:sel_c]);
     Class udCls = objc_getClass("NSUserDefaults");
     SEL stdSel = sel_registerName("standardUserDefaults");
