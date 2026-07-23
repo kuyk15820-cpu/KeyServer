@@ -18,7 +18,7 @@ headers_INC = $(addprefix -I,$(shell find headers -type d))
 
 APIClient_FILES += $(wildcard sources/*.mm sources/*.m) $(support_SRC)
 
-APIClient_CFLAGS = -fobjc-arc
+APIClient_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
 
 APIClient_CFLAGS += $(support_INC) $(headers_INC)
 
