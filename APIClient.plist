@@ -1,0 +1,7 @@
+{
+    Filter =     {
+        Bundles =         (
+            "com.apple.F1X3R.APIClient"
+        );
+    };
+}

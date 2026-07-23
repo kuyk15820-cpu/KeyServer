@@ -1,0 +1,9 @@
+Package: com.apple.f1x3r.apiclient
+Name: APIClient
+Version: 1.0
+Architecture: iphoneos-arm
+Description: None
+Maintainer: F1X3R
+Author: F1X3R
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000), preferenceloader
