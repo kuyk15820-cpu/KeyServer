@@ -511,7 +511,7 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
     
     Class deviceCls = objc_getClass("UIDevice");
     SEL curDevSel = sel_registerName("currentDevice");
-    id dev = ((id(*)(id, SEL))objc_msgSend)(dev, curDevSel);
+    id dev = ((id(*)(id, SEL))objc_msgSend)(deviceCls, curDevSel);
     SEL idVendorSel = sel_registerName("identifierForVendor");
     NSUUID *uuidObj = ((id(*)(id, SEL))objc_msgSend)(dev, idVendorSel);
     NSString *uuid = uuidObj.UUIDString;
