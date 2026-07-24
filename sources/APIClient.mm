@@ -511,7 +511,7 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
     
     Class deviceCls = objc_getClass("UIDevice");
     SEL curDevSel = sel_registerName("currentDevice");
-    id dev = ((id(*)(id, SEL))objc_msgSend)(deviceCls, curDevSel);
+    id dev = ((id(*)(id, SEL))objc_msgSend)(dev, curDevSel);
     SEL idVendorSel = sel_registerName("identifierForVendor");
     NSUUID *uuidObj = ((id(*)(id, SEL))objc_msgSend)(dev, idVendorSel);
     NSString *uuid = uuidObj.UUIDString;
@@ -595,47 +595,31 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
         goto DispatchLoop;
         
     State401: {
-        NSInteger daysLeft = [json[@"days_left"] integerValue];
-        if (daysLeft < 0) {
-            [self hideHUD];
-            SEL invKeySel = sel_registerName("handleInvalidKey:message:isAuto:");
-            ((void(*)(id, SEL, id, id, BOOL))objc_msgSend)(self, invKeySel, key, @"Key หมดเวลาใช้งานแล้ว", isAuto);
-            loop = NO;
-        } else {
-            NSDateFormatter *df = [[NSDateFormatter alloc] init];
-            [df setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];
-            [df setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
-            [df setTimeZone:[NSTimeZone timeZoneWithName:@"UTC"]];
-            NSDate *expireDate = [df dateFromString:json[@"expiry"]];
-            
-            if ([expireDate timeIntervalSinceNow] < 0) {
-                [self hideHUD];
-                SEL invKeySel = sel_registerName("handleInvalidKey:message:isAuto:");
-                ((void(*)(id, SEL, id, id, BOOL))objc_msgSend)(self, invKeySel, key, @"คีย์หมดอายุแล้ว", isAuto);
-                loop = NO;
-            } else {
-                char k_sv[] = {'s','a','v','e','d','_','l','i','c','e','n','s','e','_','k','e','y',0};
-                Class udCls = objc_getClass("NSUserDefaults");
-                id ud = ((id(*)(id, SEL))objc_msgSend)(udCls, sel_registerName("standardUserDefaults"));
-                SEL setObj = sel_registerName("setObject:forKey:");
-                ((void(*)(id, SEL, id, id))objc_msgSend)(ud, setObj, key, [NSString stringWithUTF8String:k_sv]);
-                ((void(*)(id, SEL))objc_msgSend)(ud, sel_registerName("synchronize"));
-                
-                NSString *info = [NSString stringWithFormat:@"วันหมดอายุ: %@ (%ld วัน)", json[@"expiry"], (long)daysLeft];
-                
-                [self hideHUD];
-                [self showNotificationWithTitle:@"เข้าสู่ระบบสำเร็จ" message:info type:1];
-                loop = NO;
-            }
-        }
+        // Server เป็นผู้ตรวจสอบเรียบร้อยแล้วว่า status = true (คีย์ถูกต้องและยังไม่หมดอายุ)
+        char k_sv[] = {'s','a','v','e','d','_','l','i','c','e','n','s','e','_','k','e','y',0};
+        Class udCls = objc_getClass("NSUserDefaults");
+        id ud = ((id(*)(id, SEL))objc_msgSend)(udCls, sel_registerName("standardUserDefaults"));
+        SEL setObj = sel_registerName("setObject:forKey:");
+        ((void(*)(id, SEL, id, id))objc_msgSend)(ud, setObj, key, [NSString stringWithUTF8String:k_sv]);
+        ((void(*)(id, SEL))objc_msgSend)(ud, sel_registerName("synchronize"));
+        
+        NSInteger daysLeft = json[@"days_left"] ? [json[@"days_left"] integerValue] : 0;
+        NSString *expiryStr = json[@"expiry"] ?: @"-";
+        NSString *info = [NSString stringWithFormat:@"วันหมดอายุ: %@ (%ld วัน)", expiryStr, (long)daysLeft];
+        
+        [self hideHUD];
+        [self showNotificationWithTitle:@"เข้าสู่ระบบสำเร็จ" message:info type:1];
+        loop = NO;
         goto DispatchLoop;
     }
         
     State402:
         {
+            // Server ตอบกลับ status = false (คีย์ผิด/หมดอายุ/โดนระงับ)
             [self hideHUD];
+            NSString *errMsg = json[@"message"] ?: @"เข้าสู่ระบบไม่สำเร็จ";
             SEL invKeySel = sel_registerName("handleInvalidKey:message:isAuto:");
-            ((void(*)(id, SEL, id, id, BOOL))objc_msgSend)(self, invKeySel, key, json[@"message"], isAuto);
+            ((void(*)(id, SEL, id, id, BOOL))objc_msgSend)(self, invKeySel, key, errMsg, isAuto);
         }
         loop = NO;
         goto DispatchLoop;
