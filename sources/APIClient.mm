@@ -605,6 +605,7 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
             NSDateFormatter *df = [[NSDateFormatter alloc] init];
             [df setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];
             [df setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+            [df setTimeZone:[NSTimeZone timeZoneWithName:@"UTC"]];
             NSDate *expireDate = [df dateFromString:json[@"expiry"]];
             
             if ([expireDate timeIntervalSinceNow] < 0) {
