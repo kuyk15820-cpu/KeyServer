@@ -607,8 +607,8 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
         NSString *formattedLocalExpiry = rawExpiry;
         NSString *remainingTimeString = @"";
         
-        // แปลงเวลา UTC จาก Server เป็นเวลาตาม Timezone เครื่องผู้ใช้โดยอัตโนมัติ
         if (rawExpiry.length > 0 && ![rawExpiry isEqualToString:@"-"]) {
+            // Parse เวลา UTC จาก Server
             NSDateFormatter *utcFormatter = [[NSDateFormatter alloc] init];
             [utcFormatter setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];
             [utcFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
@@ -616,24 +616,28 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
             
             NSDate *expireDate = [utcFormatter dateFromString:rawExpiry];
             if (expireDate) {
+                // แปลงแสดงผลเป็นเวลาเครื่องผู้ใช้ (Local Timezone)
                 NSDateFormatter *localFormatter = [[NSDateFormatter alloc] init];
                 [localFormatter setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];
                 [localFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
-                [localFormatter setTimeZone:[NSTimeZone systemTimeZone]]; // ใช้ Timezone ตามตำแหน่งประเทศของผู้ใช้
+                [localFormatter setTimeZone:[NSTimeZone systemTimeZone]];
                 formattedLocalExpiry = [localFormatter stringFromDate:expireDate];
                 
-                // คำนวณความต่างเวลาแบบ วัน ชั่วโมง นาที วินาที
+                // คำนวณระยะเวลาคงเหลือโดยใช้วินาทีรวม (Accuracy สูงสุด)
                 NSDate *nowDate = [NSDate date];
-                NSCalendar *calendar = [NSCalendar currentCalendar];
-                NSCalendarUnit units = NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
-                NSDateComponents *components = [calendar components:units fromDate:nowDate toDate:expireDate options:0];
+                NSTimeInterval diff = [expireDate timeIntervalSinceDate:nowDate];
                 
-                NSInteger days = components.day > 0 ? components.day : 0;
-                NSInteger hours = components.hour > 0 ? components.hour : 0;
-                NSInteger minutes = components.minute > 0 ? components.minute : 0;
-                NSInteger seconds = components.second > 0 ? components.second : 0;
-                
-                remainingTimeString = [NSString stringWithFormat:@" (เหลืออีก %ld วัน %ld ชั่วโมง %ld นาที %ld วินาที)", (long)days, (long)hours, (long)minutes, (long)seconds];
+                if (diff > 0) {
+                    NSInteger totalSeconds = (NSInteger)diff;
+                    NSInteger days = totalSeconds / 86400;
+                    NSInteger hours = (totalSeconds % 86400) / 3600;
+                    NSInteger minutes = (totalSeconds % 3600) / 60;
+                    NSInteger seconds = totalSeconds % 60;
+                    
+                    remainingTimeString = [NSString stringWithFormat:@" (เหลืออีก %ld วัน %ld ชั่วโมง %ld นาที %ld วินาที)", (long)days, (long)hours, (long)minutes, (long)seconds];
+                } else {
+                    remainingTimeString = @" (หมดอายุแล้ว)";
+                }
             }
         }
         
