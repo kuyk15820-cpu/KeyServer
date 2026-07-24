@@ -626,7 +626,7 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
                 NSDate *nowDate = [NSDate date];
                 NSCalendar *calendar = [NSCalendar currentCalendar];
                 NSCalendarUnit units = NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
-                NSDateComponents *components = [calendar components:unitsfromDate:nowDate toDate:expireDate options:0];
+                NSDateComponents *components = [calendar components:units fromDate:nowDate toDate:expireDate options:0];
                 
                 NSInteger days = components.day > 0 ? components.day : 0;
                 NSInteger hours = components.hour > 0 ? components.hour : 0;
