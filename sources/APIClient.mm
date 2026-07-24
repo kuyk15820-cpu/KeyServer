@@ -595,7 +595,7 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
         goto DispatchLoop;
         
     State401: {
-        // Server เป็นผู้ตรวจสอบเรียบร้อยแล้วว่า status = true (คีย์ถูกต้องและยังไม่หมดอายุ)
+        // บันทึก Key ลงใน NSUserDefaults เมื่อการยืนยันตัวตนสำเร็จ
         char k_sv[] = {'s','a','v','e','d','_','l','i','c','e','n','s','e','_','k','e','y',0};
         Class udCls = objc_getClass("NSUserDefaults");
         id ud = ((id(*)(id, SEL))objc_msgSend)(udCls, sel_registerName("standardUserDefaults"));
@@ -604,8 +604,27 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
         ((void(*)(id, SEL))objc_msgSend)(ud, sel_registerName("synchronize"));
         
         NSInteger daysLeft = json[@"days_left"] ? [json[@"days_left"] integerValue] : 0;
-        NSString *expiryStr = json[@"expiry"] ?: @"-";
-        NSString *info = [NSString stringWithFormat:@"วันหมดอายุ: %@ (%ld วัน)", expiryStr, (long)daysLeft];
+        NSString *rawExpiry = json[@"expiry"] ?: @"-";
+        NSString *formattedLocalExpiry = rawExpiry;
+        
+        // แปลงเวลา UTC จาก Server เป็นเวลาตาม Timezone เครื่องผู้ใช้โดยอัตโนมัติ
+        if (rawExpiry.length > 0 && ![rawExpiry isEqualToString:@"-"]) {
+            NSDateFormatter *utcFormatter = [[NSDateFormatter alloc] init];
+            [utcFormatter setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];
+            [utcFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+            [utcFormatter setTimeZone:[NSTimeZone timeZoneWithName:@"UTC"]];
+            
+            NSDate *expireDate = [utcFormatter dateFromString:rawExpiry];
+            if (expireDate) {
+                NSDateFormatter *localFormatter = [[NSDateFormatter alloc] init];
+                [localFormatter setLocale:[NSLocale currentLocale]];
+                [localFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+                [localFormatter setTimeZone:[NSTimeZone systemTimeZone]]; // ใช้ Timezone ตามตำแหน่งประเทศของผู้ใช้
+                formattedLocalExpiry = [localFormatter stringFromDate:expireDate];
+            }
+        }
+        
+        NSString *info = [NSString stringWithFormat:@"วันหมดอายุ: %@ (%ld วัน)", formattedLocalExpiry, (long)daysLeft];
         
         [self hideHUD];
         [self showNotificationWithTitle:@"เข้าสู่ระบบสำเร็จ" message:info type:1];
@@ -615,7 +634,6 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
         
     State402:
         {
-            // Server ตอบกลับ status = false (คีย์ผิด/หมดอายุ/โดนระงับ)
             [self hideHUD];
             NSString *errMsg = json[@"message"] ?: @"เข้าสู่ระบบไม่สำเร็จ";
             SEL invKeySel = sel_registerName("handleInvalidKey:message:isAuto:");
