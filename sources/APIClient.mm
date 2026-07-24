@@ -603,9 +603,9 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
         ((void(*)(id, SEL, id, id))objc_msgSend)(ud, setObj, key, [NSString stringWithUTF8String:k_sv]);
         ((void(*)(id, SEL))objc_msgSend)(ud, sel_registerName("synchronize"));
         
-        NSInteger daysLeft = json[@"days_left"] ? [json[@"days_left"] integerValue] : 0;
         NSString *rawExpiry = json[@"expiry"] ?: @"-";
         NSString *formattedLocalExpiry = rawExpiry;
+        NSString *remainingTimeString = @"";
         
         // แปลงเวลา UTC จาก Server เป็นเวลาตาม Timezone เครื่องผู้ใช้โดยอัตโนมัติ
         if (rawExpiry.length > 0 && ![rawExpiry isEqualToString:@"-"]) {
@@ -617,14 +617,27 @@ static void __attribute__((noinline)) trampoline_jump(void (*func)(id, SEL, id),
             NSDate *expireDate = [utcFormatter dateFromString:rawExpiry];
             if (expireDate) {
                 NSDateFormatter *localFormatter = [[NSDateFormatter alloc] init];
-                [localFormatter setLocale:[NSLocale currentLocale]];
+                [localFormatter setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];
                 [localFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
                 [localFormatter setTimeZone:[NSTimeZone systemTimeZone]]; // ใช้ Timezone ตามตำแหน่งประเทศของผู้ใช้
                 formattedLocalExpiry = [localFormatter stringFromDate:expireDate];
+                
+                // คำนวณความต่างเวลาแบบ วัน ชั่วโมง นาที วินาที
+                NSDate *nowDate = [NSDate date];
+                NSCalendar *calendar = [NSCalendar currentCalendar];
+                NSCalendarUnit units = NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
+                NSDateComponents *components = [calendar components:unitsfromDate:nowDate toDate:expireDate options:0];
+                
+                NSInteger days = components.day > 0 ? components.day : 0;
+                NSInteger hours = components.hour > 0 ? components.hour : 0;
+                NSInteger minutes = components.minute > 0 ? components.minute : 0;
+                NSInteger seconds = components.second > 0 ? components.second : 0;
+                
+                remainingTimeString = [NSString stringWithFormat:@" (เหลืออีก %ld วัน %ld ชั่วโมง %ld นาที %ld วินาที)", (long)days, (long)hours, (long)minutes, (long)seconds];
             }
         }
         
-        NSString *info = [NSString stringWithFormat:@"วันหมดอายุ: %@ (%ld วัน)", formattedLocalExpiry, (long)daysLeft];
+        NSString *info = [NSString stringWithFormat:@"วันหมดอายุ: %@%@", formattedLocalExpiry, remainingTimeString];
         
         [self hideHUD];
         [self showNotificationWithTitle:@"เข้าสู่ระบบสำเร็จ" message:info type:1];
